@@ -1,5 +1,5 @@
-from flask import Blueprint, request, jsonify
-from models import db, Category
+from flask import Blueprint, request, jsonify, current_app as app
+from models import Category
 from flasgger import swag_from
 
 # Define a blueprint for category routes
@@ -22,11 +22,17 @@ def create_category():
     data = request.get_json()
     category_name = data.get('category_name')
 
-    new_category = Category(category_name=category_name)
-    db.session.add(new_category)
-    db.session.commit()
-
-    return jsonify({"message": "Category created", "id": new_category.id}), 201
+    session = app.Session()
+    try:
+        new_category = Category(category_name=category_name)
+        session.add(new_category)
+        session.commit()
+        return jsonify({"message": "Category created", "id": new_category.id}), 201
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
 
 # Get all categories
 @category_bp.route('/categories', methods=['GET'])
@@ -38,9 +44,13 @@ def create_category():
     }
 })
 def get_categories():
-    categories = Category.query.all()
-    result = [{"id": c.id, "category_name": c.category_name} for c in categories]
-    return jsonify(result), 200
+    session = app.Session()
+    try:
+        categories = session.query(Category).all()
+        result = [{"id": c.id, "category_name": c.category_name} for c in categories]
+        return jsonify(result), 200
+    finally:
+        session.close()
 
 # Get category by ID
 @category_bp.route('/categories/<int:id>', methods=['GET'])
@@ -56,11 +66,15 @@ def get_categories():
     }
 })
 def get_category(id):
-    category = Category.query.get(id)
-    if category:
-        result = {"id": category.id, "category_name": category.category_name}
-        return jsonify(result), 200
-    return jsonify({"error": "Category not found"}), 404
+    session = app.Session()
+    try:
+        category = session.query(Category).get(id)
+        if category:
+            result = {"id": category.id, "category_name": category.category_name}
+            return jsonify(result), 200
+        return jsonify({"error": "Category not found"}), 404
+    finally:
+        session.close()
 
 # Update category
 @category_bp.route('/categories/<int:id>', methods=['PUT'])
@@ -78,14 +92,20 @@ def get_category(id):
 })
 def update_category(id):
     data = request.get_json()
-    category = Category.query.get(id)
+    session = app.Session()
+    try:
+        category = session.query(Category).get(id)
+        if not category:
+            return jsonify({"error": "Category not found"}), 404
 
-    if not category:
-        return jsonify({"error": "Category not found"}), 404
-
-    category.category_name = data.get('category_name', category.category_name)
-    db.session.commit()
-    return jsonify({"message": "Category updated"}), 200
+        category.category_name = data.get('category_name', category.category_name)
+        session.commit()
+        return jsonify({"message": "Category updated"}), 200
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
 
 # Delete category
 @category_bp.route('/categories/<int:id>', methods=['DELETE'])
@@ -101,11 +121,17 @@ def update_category(id):
     }
 })
 def delete_category(id):
-    category = Category.query.get(id)
+    session = app.Session()
+    try:
+        category = session.query(Category).get(id)
+        if not category:
+            return jsonify({"error": "Category not found"}), 404
 
-    if not category:
-        return jsonify({"error": "Category not found"}), 404
-
-    db.session.delete(category)
-    db.session.commit()
-    return jsonify({"message": "Category deleted"}), 204
+        session.delete(category)
+        session.commit()
+        return jsonify({"message": "Category deleted"}), 204
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
