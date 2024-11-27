@@ -20,6 +20,9 @@ def create_app():
     
     # Configurations
     app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URI')
+    if not app.config['SQLALCHEMY_DATABASE_URI']:
+        raise ValueError("DATABASE_URI is not set in the environment variables")
+    
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SQLALCHEMY_POOL_SIZE'] = 10
     app.config['SQLALCHEMY_POOL_TIMEOUT'] = 30
@@ -37,13 +40,16 @@ def create_app():
     with app.app_context():
         session_factory = sessionmaker(bind=db.engine)
         Session = scoped_session(session_factory)
+        app.Session = Session  # Attach session to app for global access
 
     # Register blueprints for the controllers
     app.register_blueprint(product_bp)
     app.register_blueprint(category_bp)
     app.register_blueprint(order_bp)
 
-    # Attach the session to the app so it's accessible elsewhere
-    app.Session = Session
+    # Clean up sessions after each request
+    @app.teardown_appcontext
+    def remove_session(exception=None):
+        app.Session.remove()
 
     return app

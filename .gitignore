@@ -1,0 +1,64 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Virtual environments
+venv/
+.env
+
+# Flask files
+instance/
+*.pyc
+
+# AWS credentials
+.aws/
+
+# Flask-migrate migrations
+migrations/
+
+# Pytest
+*.pytest_cache/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# IDE files
+.vscode/
+.idea/
+
+# Logs and databases
+*.log
+*.sqlite3
+
+# Temporary files and directories
+*.swp
+*.swo
+*.tmp
+*.bak
+*.orig
+*.DS_Store
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+
+# Build and distribution files
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Config backups
+config.yml.bak
+
+# Docker
+*.env.production
+docker-compose.override.yml
+
+# Specific tooling
+node_modules/

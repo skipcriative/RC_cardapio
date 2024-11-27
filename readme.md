@@ -1,55 +1,71 @@
+Here’s the updated `README.md` to include the AWS S3 integration and other recent changes:
+
+---
 
 # RC Cardapio Backend
 
-A backend application for managing restaurant menus with Flask, SQLAlchemy, and MySQL. The application provides CRUD (Create, Read, Update, Delete) operations for `Product` and `Category` models, with organized endpoints in separate controllers.
+A backend application for managing restaurant menus with Flask, SQLAlchemy, MySQL, and AWS S3. The application provides CRUD (Create, Read, Update, Delete) operations for `Product`, `Category`, and `Order` models, with organized endpoints in separate controllers. Products can include images stored in an AWS S3 bucket.
+
+---
 
 ## Features
 
-- Full CRUD operations for `Product` and `Category`.
+- Full CRUD operations for `Product`, `Category`, and `Order`.
 - Database initialization with sample data.
-- Swagger API documentation.
-- Modular structure with separate controllers for `Product` and `Category` endpoints.
+- Swagger API documentation for easy testing.
+- Modular structure with separate controllers for endpoints.
 - Environment variable configuration for sensitive data.
+- AWS S3 integration for managing product images.
+
+---
 
 ## Project Structure
 
-
 ```
 project-root/
-├── app_factory.py            # Factory function to create and configure the Flask app
-├── rc_cardapio.py            # Main entry point to start the application
-├── models.py                 # SQLAlchemy models for Product and Category
-├── controllers/              # Folder to hold endpoint files for modularity
-│   ├── product_controller.py # Controller for Product-related endpoints
-│   └── category_controller.py # Controller for Category-related endpoints
-├── initialize_db.py          # Script to initialize the database with sample data
-├── .env                      # Environment variables for database credentials and configuration
-├── requirements.txt          # List of project dependencies
-└── migrations/               # Directory for database migration files (optional if using Flask-Migrate)
-
+├── app_factory.py              # Factory function to create and configure the Flask app
+├── rc_cardapio.py              # Main entry point to start the application
+├── models.py                   # SQLAlchemy models for Product, Category, and Order
+├── controllers/                # Folder to hold endpoint files for modularity
+│   ├── product_controller.py   # Controller for Product-related endpoints
+│   ├── category_controller.py  # Controller for Category-related endpoints
+│   ├── order_controller.py     # Controller for Order-related endpoints
+├── initialize_db.py            # Script to initialize the database with sample data
+├── s3_handler.py               # AWS S3 utility class for handling file uploads
+├── .env                        # Environment variables for database and AWS credentials
+├── requirements.txt            # List of project dependencies
+└── migrations/                 # Directory for database migration files (if using Flask-Migrate)
 ```
+
+---
 
 ## Requirements
 
 - Python 3.x
 - MySQL
+- AWS S3 bucket
 - `pip` (Python package manager)
+
+---
 
 ## Installation
 
 1. **Clone the Repository**
+
    ```bash
    git clone https://github.com/yourusername/rc-cardapio-backend.git
    cd rc-cardapio-backend
    ```
 
 2. **Create a Virtual Environment**
+
    ```bash
    python -m venv venv
    source venv/bin/activate     # On Windows, use `venv\Scripts\activate`
    ```
 
 3. **Install Dependencies**
+
    ```bash
    pip install -r requirements.txt
    ```
@@ -59,12 +75,19 @@ project-root/
    Create a `.env` file in the root directory with the following variables:
 
    ```plaintext
+   # Database Configuration
    DB_USER=your_db_user
    DB_PASSWORD=your_db_password
    DB_HOST=your_db_host
    DB_NAME=your_db_name
    DB_PORT=3306
    DATABASE_URI=mysql+mysqlconnector://your_db_user:your_db_password@your_db_host:3306/your_db_name
+
+   # AWS S3 Configuration
+   AWS_ACCESS_KEY_ID=your_aws_access_key
+   AWS_SECRET_ACCESS_KEY=your_aws_secret_key
+   AWS_BUCKET_NAME=your_bucket_name
+   AWS_REGION=your_bucket_region
    ```
 
 5. **Initialize the Database**
@@ -74,6 +97,18 @@ project-root/
    ```bash
    python initialize_db.py
    ```
+
+6. **Run Database Migrations (Optional)**
+
+   If using Flask-Migrate, initialize and apply migrations:
+
+   ```bash
+   flask db init
+   flask db migrate -m "Initial migration"
+   flask db upgrade
+   ```
+
+---
 
 ## Running the Application
 
@@ -85,18 +120,26 @@ python rc_cardapio.py
 
 The application will be available at `http://localhost:5000`.
 
+---
+
 ## API Documentation
 
 Swagger documentation is available at `http://localhost:5000/apidocs`. It provides a UI to test all the endpoints and see the expected request and response formats.
+
+---
 
 ## Endpoints
 
 ### Product Endpoints
 
 - **Create Product**: `POST /products`
+  - Accepts optional image file uploads, stores the image in AWS S3, and saves the public URL.
 - **Get All Products**: `GET /products`
+  - Includes the public image URL in the response.
 - **Get Product by ID**: `GET /products/<id>`
+  - Includes the public image URL in the response.
 - **Update Product**: `PUT /products/<id>`
+  - Allows updating the product image.
 - **Delete Product**: `DELETE /products/<id>`
 
 ### Category Endpoints
@@ -107,17 +150,39 @@ Swagger documentation is available at `http://localhost:5000/apidocs`. It provid
 - **Update Category**: `PUT /categories/<id>`
 - **Delete Category**: `DELETE /categories/<id>`
 
-## Project Details
+### Order Endpoints
 
-- **Modular Structure**: Routes are separated into `product_controller.py` and `category_controller.py` files inside the `controllers` directory.
-- **Database Models**: Defined in `models.py` using SQLAlchemy.
-- **App Factory**: `app_factory.py` contains a factory function to create the Flask app, configure it, and register blueprints.
+- **Create Order**: `POST /orders`
+- **Get All Orders**: `GET /orders`
+- **Get Order by ID**: `GET /orders/<id>`
+- **Update Order**: `PUT /orders/<id>`
+- **Delete Order**: `DELETE /orders/<id>`
+
+---
+
+## AWS S3 Integration
+
+- **S3Handler**: Handles file uploads to AWS S3.
+- **File Storage**:
+  - Uploaded product images are stored in the `products/` folder in the S3 bucket.
+  - The public S3 URL is saved in the `image_link` field of the `Product` model.
+
+---
 
 ## Troubleshooting
 
-If you encounter database connection issues:
-- Ensure that the database credentials in the `.env` file are correct.
-- Make sure MySQL is running and accessible on the specified `DB_HOST` and `DB_PORT`.
+- **Database Issues**:
+  - Ensure that the database credentials in the `.env` file are correct.
+  - Verify that MySQL is running and accessible.
+
+- **AWS S3 Issues**:
+  - Ensure that the AWS credentials in the `.env` file are valid.
+  - Check the bucket permissions (public read access must be enabled).
+
+- **Dependencies**:
+  - Run `pip install -r requirements.txt` to ensure all dependencies are installed.
+
+---
 
 ## License
 
@@ -125,12 +190,11 @@ This project is licensed under the MIT License.
 
 ---
 
-### Explanation
+### Summary of Updates
 
-- **Overview**: Describes what the project is and its main features.
-- **Installation**: Detailed steps on setting up the project, including environment setup.
-- **API Documentation**: Instructions to access Swagger UI.
-- **Endpoints**: Lists available endpoints with HTTP methods.
-- **Troubleshooting**: Tips for common issues.
-- **License**: Basic licensing information (customize if needed).
+- Added **AWS S3 Integration** details.
+- Updated **Project Structure** with `s3_handler.py`.
+- Expanded **Endpoints** section with image upload details for products.
+- Added **Troubleshooting** for AWS S3.
 
+Let me know if you'd like further refinements!

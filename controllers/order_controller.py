@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, current_app as app
-from models import Order
+from models import Order, OrderItem, Product
 from flasgger import swag_from
 
 # Define a blueprint for order routes
@@ -11,7 +11,7 @@ order_bp = Blueprint('order_bp', __name__)
     'tags': ['Orders'],
     'description': 'Create a new order',
     'parameters': [
-        {'name': 'body', 'in': 'body', 'required': True, 'schema': {'table': 'int', 'products': 'list', 'total': 'float', 'status': 'str'}}
+        {'name': 'body', 'in': 'body', 'required': True, 'schema': {'table_number': 'int', 'products': 'list'}}
     ],
     'responses': {
         '201': {'description': 'Order created successfully'},
@@ -20,16 +20,41 @@ order_bp = Blueprint('order_bp', __name__)
 })
 def create_order():
     data = request.get_json()
-    table = data.get('table')
-    products = data.get('products')  # Expected as a list
-    total = data.get('total')
-    status = data.get('status', 'open')  # Default to 'open'
+    table_number = data.get('table_number')
+    products = data.get('products')  # List of {id, quantity}
+
+    if not table_number or not products:
+        return jsonify({"error": "Table number and products are required"}), 400
 
     session = app.Session()
+    print(f"Session initialized: {session}")
+
     try:
-        new_order = Order(table=table, products=str(products), total=total, status=status)
+        # Calculate total
+        total = 0
+        order_items = []
+        for item in products:
+            product = session.query(Product).get(item['id'])
+            if not product:
+                return jsonify({"error": f"Product with ID {item['product_id']} not found"}), 400
+            quantity = item.get('quantity', 1)
+            total += product.price * quantity
+            order_items.append(OrderItem(product_id=product.id, quantity=quantity))
+
+        
+        # Create the order
+        new_order = Order(table_number=table_number, total=total, status='open')
         session.add(new_order)
         session.commit()
+
+        print(new_order)
+
+        # Add order items
+        for order_item in order_items:
+            order_item.order_id = new_order.id
+            session.add(order_item)
+        session.commit()
+
         return jsonify({"message": "Order created", "id": new_order.id}), 201
     except Exception as e:
         session.rollback()
@@ -53,10 +78,18 @@ def get_orders():
         result = [
             {
                 "id": o.id,
-                "table": o.table,
-                "products": eval(o.products),  # Convert back to list
+                "table_number": o.table_number,
                 "total": o.total,
-                "status": o.status
+                "status": o.status,
+                "products": [
+                    {
+                        "product_id": item.product_id,
+                        "name": item.product.name,
+                        "quantity": item.quantity,
+                        "price": item.product.price
+                    }
+                    for item in o.items
+                ]
             }
             for o in orders
         ]
@@ -84,10 +117,18 @@ def get_order(id):
         if order:
             result = {
                 "id": order.id,
-                "table": order.table,
-                "products": eval(order.products),  # Convert back to list
+                "table_number": order.table_number,
                 "total": order.total,
-                "status": order.status
+                "status": order.status,
+                "products": [
+                    {
+                        "product_id": item.product_id,
+                        "name": item.product.name,
+                        "quantity": item.quantity,
+                        "price": item.product.price
+                    }
+                    for item in order.items
+                ]
             }
             return jsonify(result), 200
         return jsonify({"message": "Order not found"}), 404
@@ -101,7 +142,7 @@ def get_order(id):
     'description': 'Update an order by ID',
     'parameters': [
         {'name': 'id', 'in': 'path', 'type': 'integer', 'required': True},
-        {'name': 'body', 'in': 'body', 'required': True, 'schema': {'table': 'int', 'products': 'list', 'total': 'float', 'status': 'str'}}
+        {'name': 'body', 'in': 'body', 'required': True, 'schema': {'table_number': 'int', 'products': 'list'}}
     ],
     'responses': {
         '200': {'description': 'Order updated successfully'},
@@ -116,10 +157,28 @@ def update_order(id):
         if not order:
             return jsonify({"message": "Order not found"}), 404
 
-        order.table = data.get('table', order.table)
-        order.products = str(data.get('products', eval(order.products)))  # Convert list to string
-        order.total = data.get('total', order.total)
+        # Update order fields
+        order.table_number = data.get('table_number', order.table_number)
         order.status = data.get('status', order.status)
+
+        # Update products (optional)
+        if 'products' in data:
+            # Remove existing items
+            session.query(OrderItem).filter_by(order_id=order.id).delete()
+
+            # Add new items
+            products = data['products']
+            total = 0
+            for item in products:
+                product = session.query(Product).get(item['product_id'])
+                if not product:
+                    return jsonify({"error": f"Product with ID {item['product_id']} not found"}), 400
+                quantity = item.get('quantity', 1)
+                total += product.price * quantity
+                order_item = OrderItem(order_id=order.id, product_id=product.id, quantity=quantity)
+                session.add(order_item)
+
+            order.total = total
         session.commit()
         return jsonify({"message": "Order updated"}), 200
     except Exception as e:

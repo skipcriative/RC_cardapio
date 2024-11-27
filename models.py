@@ -26,17 +26,19 @@ class Product(db.Model):
 class Order(db.Model):
     __tablename__ = 'orders'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    table = db.Column(db.String(20), nullable=False)
-    products = db.Column(db.Text, nullable=False)  # Store as JSON-like string
-    total = db.Column(db.Float, nullable=False)
-    status = db.Column(db.String(10), nullable=False, default='open')
+    table_number = db.Column(db.Integer, nullable=False)  # Integer for table number
+    total = db.Column(db.Float, nullable=False, default=0.0)
+    status = db.Column(db.String(10), nullable=False, default='open')  # e.g., 'open' or 'closed'
 
-class OrderItem(db.Model):  # Optional model for detailed product relationships in orders
+    # Relationship to OrderItem
+    items = db.relationship('OrderItem', backref='order', lazy=True, cascade="all, delete-orphan")
+
+
+class OrderItem(db.Model):
     __tablename__ = 'order_items'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     order_id = db.Column(db.Integer, db.ForeignKey('orders.id'), nullable=False)
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False, default=1)
 
-    # Relationship to Order
-    order = db.relationship('Order', backref='items', lazy=True)
+    # Relationship to Order is already defined in the backref from Order.items
